@@ -14,15 +14,20 @@ export default createStore({
         currentTaskStats: {
             status: 'STOPPED',
             totalRecords: 0,
+            shardCount: 0,
             processedRecords: 0,
             scannedRecords: 0,
             failedShards: 0,
+            completedShards: 0,
+            skippedShards: 0,
             failedBatches: []
         },
         config: {
             taskId: "",
             taskName: "",
             sourceType: "",
+            sourceFieldName: '',
+            targetFieldName: '',
             sourceConfig: {
                 url: "",
                 username: "",
@@ -40,14 +45,13 @@ export default createStore({
                 batchSize: 5000,
                 minShards: 1,
                 maxShards: 10,
-                coordinatorType: "",
+                coordinatorType: "redis",
                 coordinatorConfig: {
                     host: "",
-                    port: 0
+                    port: 6379
                 }
             },
-            sourceEntityClassName: "kd.data.web.entities.SourceMessage",
-            targetEntityClassName: "kd.data.web.entities.TargetMessage"
+            fields: [{}]
         }
     },
     mutations: {
@@ -82,6 +86,8 @@ export default createStore({
                 taskName: '',
                 sourceType: '',
                 destinationType: '',
+                sourceFieldName: '',
+                targetFieldName: '',
                 sourceConfig: {
                     url: '',
                     username: '',
@@ -104,8 +110,7 @@ export default createStore({
                         port: 0
                     }
                 },
-                sourceEntityClassName: '',
-                targetEntityClassName: ''
+                fields: []
             };
         }
     },

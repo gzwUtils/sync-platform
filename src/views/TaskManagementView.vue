@@ -13,7 +13,7 @@
           <p>目标端: {{ task.destinationType === 'es' ? 'Elasticsearch' : 'JDBC数据库' }}</p>
           <div class="task-status">
             <StatusIndicator :status="taskStats.status" />
-            <span>记录数: {{ taskStats.totalRecords || 0 }}</span>
+            <span>记录数: {{ taskStats.processedRecords || 0 }}</span>
           </div>
         </div>
         <div class="task-controls">

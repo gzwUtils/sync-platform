@@ -4,127 +4,201 @@
       <h2 class="card-title">系统配置</h2>
     </div>
 
+    <!-- 基础信息 -->
     <div class="form-grid">
       <div class="form-group">
-        <label for="taskId">任务ID</label>
-        <input type="text" id="taskId" class="form-control" v-model="config.taskId">
+        <label>任务ID</label>
+        <input v-model="config.taskId" class="form-control" />
       </div>
       <div class="form-group">
-        <label for="taskName">任务名称</label>
-        <input type="text" id="taskName" class="form-control" v-model="config.taskName">
+        <label>任务名称</label>
+        <input v-model="config.taskName" class="form-control" />
       </div>
-
       <div class="form-group">
-        <label for="sourceType">源类型</label>
-        <select id="sourceType" class="form-control" v-model="config.sourceType">
-          <option value="jdbc">JDBC数据库</option>
+        <label>源类型</label>
+        <select v-model="config.sourceType" class="form-control">
+          <option value="jdbc">JDBC</option>
           <option value="file">文件系统</option>
         </select>
       </div>
       <div class="form-group">
-        <label for="destinationType">目标类型</label>
-        <select id="destinationType" class="form-control" v-model="config.destinationType">
-          <option value="jdbc">JDBC数据库</option>
+        <label>目标类型</label>
+        <select v-model="config.destinationType" class="form-control">
+          <option value="jdbc">JDBC</option>
           <option value="es">Elasticsearch</option>
+          <option value="kafka">KAFKA</option>
         </select>
       </div>
     </div>
 
+    <!-- 源端配置 -->
     <div class="target-end-config">
       <h4>源端配置</h4>
       <div class="form-grid">
         <div class="form-group">
-          <label for="sourceUrl">数据库URL</label>
-          <input type="text" id="sourceUrl" class="form-control" v-model="config.sourceConfig.url">
+          <label>URL</label>
+          <input v-model="config.sourceConfig.url" class="form-control" />
         </div>
         <div class="form-group">
-          <label for="sourceUsername">用户名</label>
-          <input type="text" id="sourceUsername" class="form-control" v-model="config.sourceConfig.username">
+          <label>用户名</label>
+          <input v-model="config.sourceConfig.username" class="form-control" />
         </div>
         <div class="form-group">
-          <label for="sourcePassword">密码</label>
-          <input type="password" id="sourcePassword" class="form-control" v-model="config.sourceConfig.password">
+          <label>密码</label>
+          <input type="password" v-model="config.sourceConfig.password" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>源表</label>
+          <input  v-model="config.sourceFieldName" class="form-control" />
         </div>
       </div>
     </div>
 
+    <!-- 目标端配置 -->
     <div class="target-end-config">
       <h4>目标端配置</h4>
-      <div v-if="config.destinationType === 'es'" class="target-config active">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="clusterNodes">集群节点</label>
-            <input type="text" id="clusterNodes" class="form-control" v-model="config.destinationConfig.clusterNodes">
-          </div>
-          <div class="form-group">
-            <label for="disableSslVerification">禁用SSL验证</label>
-            <select id="disableSslVerification" class="form-control" v-model="config.destinationConfig.disableSslVerification">
-              <option :value="false">否</option>
-              <option :value="true">是</option>
-            </select>
-          </div>
+
+      <!-- JDBC -->
+      <div v-if="config.destinationType === 'jdbc'" class="form-grid">
+        <div class="form-group">
+          <label>URL</label>
+          <input v-model="config.destinationConfig.url" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>用户名</label>
+          <input v-model="config.destinationConfig.username" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" v-model="config.destinationConfig.password" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>目标表</label>
+          <input  v-model="config.targetFieldName" class="form-control" />
         </div>
       </div>
-      <div v-if="config.destinationType === 'jdbc'" class="target-config active">
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="clusterNodes">目标端数据库url</label>
-            <input type="text" id="clusterNodes" class="form-control" v-model="config.destinationConfig.url">
-          </div>
-          <div class="form-group">
-            <label for="disableSslVerification">账号</label>
-            <input type="text" id="username" class="form-control" v-model="config.destinationConfig.username">
-          </div>
-          <div class="form-group">
-            <label for="disableSslVerification">密码</label>
-            <input type="password" id="password" class="form-control" v-model="config.destinationConfig.password">
-          </div>
+
+      <!-- ES -->
+      <div v-if="config.destinationType === 'es'" class="form-grid">
+        <div class="form-group">
+          <label>集群节点</label>
+          <input v-model="config.destinationConfig.clusterNodes" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>禁用SSL</label>
+          <select v-model="config.destinationConfig.disableSslVerification" class="form-control">
+            <option :value="false">否</option>
+            <option :value="true">是</option>
+          </select>
         </div>
       </div>
     </div>
 
+    <!-- 同步配置 -->
     <div class="config-advanced">
       <h4>同步配置</h4>
       <div class="form-grid">
         <div class="form-group">
-          <label for="batchSize">批次大小</label>
-          <input type="number" id="batchSize" class="form-control" v-model="config.syncConfig.batchSize">
+          <label>批次大小</label>
+          <input type="number" v-model="config.syncConfig.batchSize" class="form-control" />
         </div>
         <div class="form-group">
-          <label for="minShards">最小分片数</label>
-          <input type="number" id="minShards" class="form-control" v-model="config.syncConfig.minShards">
+          <label>最小分片数</label>
+          <input type="number" v-model="config.syncConfig.minShards" class="form-control" />
         </div>
         <div class="form-group">
-          <label for="maxShards">最大分片数</label>
-          <input type="number" id="maxShards" class="form-control" v-model="config.syncConfig.maxShards">
+          <label>最大分片数</label>
+          <input type="number" v-model="config.syncConfig.maxShards" class="form-control" />
         </div>
         <div class="form-group">
-          <label for="coordinatorType">协调器类型</label>
-          <select id="coordinatorType" class="form-control" v-model="config.syncConfig.coordinatorType">
+          <label>协调器类型</label>
+          <select v-model="config.syncConfig.coordinatorType" class="form-control">
             <option value="redis">Redis</option>
             <option value="zookeeper">Zookeeper</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="coordinatorHost">协调器主机</label>
-          <input type="text" id="coordinatorHost" class="form-control" v-model="config.syncConfig.coordinatorConfig.host">
+          <label>协调器主机</label>
+          <input v-model="config.syncConfig.coordinatorConfig.host" class="form-control" />
         </div>
         <div class="form-group">
-          <label for="coordinatorPort">协调器端口</label>
-          <input type="number" id="coordinatorPort" class="form-control" v-model="config.syncConfig.coordinatorConfig.port">
-        </div>
-        <div class="form-group">
-          <label for="sourceEntityClassName">源实体类名</label>
-          <input type="text" id="sourceEntityClassName" class="form-control" v-model="config.sourceEntityClassName">
-        </div>
-        <div class="form-group">
-          <label for="targetEntityClassName">目标实体类名</label>
-          <input type="text" id="targetEntityClassName" class="form-control" v-model="config.targetEntityClassName">
+          <label>协调器端口</label>
+          <input type="number" v-model="config.syncConfig.coordinatorConfig.port" class="form-control" />
         </div>
       </div>
     </div>
 
-    <div style="margin-top: 20px; display: flex; gap: 10px;">
+    <!-- 字段映射 -->
+    <div class="config-advanced">
+      <h4>字段映射</h4>
+      <div
+          v-for="(f, idx) in fields"
+          :key="idx"
+          class="form-grid"
+          style="border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px"
+      >
+        <div class="form-group">
+          <label>javaField</label>
+          <input v-model="f.javaField" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>sourceField</label>
+          <input v-model="f.sourceField" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>sourceType</label>
+          <select v-model="f.sourceType" class="form-control">
+            <option value="String">String</option>
+            <option value="Long">Long</option>
+            <option value="Integer">Integer</option>
+            <option value="Double">Double</option>
+            <option value="BigDecimal">BigDecimal</option>
+            <option value="LocalDate">LocalDate</option>
+            <option value="LocalDateTime">LocalDateTime</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>targetField</label>
+          <input v-model="f.targetField" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label>targetType</label>
+          <select v-model="f.targetType" class="form-control">
+            <option value="String">String</option>
+            <option value="Long">Long</option>
+            <option value="Integer">Integer</option>
+            <option value="Double">Double</option>
+            <option value="BigDecimal">BigDecimal</option>
+            <option value="LocalDate">LocalDate</option>
+            <option value="LocalDateTime">LocalDateTime</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>checkpoint</label>
+          <select v-model="f.checkpoint" class="form-control">
+            <option :value="true">是</option>
+            <option :value="false">否</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>role</label>
+          <select v-model="f.role" class="form-control">
+            <option value="id">ID</option>
+            <option value="data">DATA</option>
+            <option value="version">VERSION</option>
+            <option value="timestamp">TIMESTAMP</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>操作</label>
+          <button class="btn btn-error" @click="removeField(idx)">删除</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" @click="addField">新增字段</button>
+    </div>
+
+    <!-- 保存 / 重置 -->
+    <div style="margin-top: 20px; display: flex; gap: 10px">
       <button class="btn btn-primary" @click="saveConfig">
         <i class="fas fa-save"></i> 保存配置
       </button>
@@ -133,7 +207,7 @@
       </button>
     </div>
 
-    <div class="alert alert-success" v-if="configSuccess" style="margin-top: 20px;">
+    <div class="alert alert-success" v-if="configSuccess" style="margin-top: 20px">
       <i class="fas fa-check-circle"></i>
       <span>配置保存成功</span>
     </div>
@@ -154,6 +228,8 @@ export default {
       set: (value) => store.commit('updateConfig', value)
     })
 
+    const fields   = computed(() => store.state.config.fields)
+
     // 保存配置
     const saveConfig = () => {
       store.commit('setCurrentTask', config.value)
@@ -169,9 +245,32 @@ export default {
       store.commit('resetConfig')
     }
 
+    /* 操作方法里通过 mutation 改 store */
+    function addField() {
+      const list = [...fields.value]
+      list.push({
+        javaField: '',
+        sourceType: 'String',
+        sourceField: '',
+        checkpoint: false,
+        targetField: '',
+        targetType: 'String',
+        role: 'data'
+      })
+      store.commit('updateConfig', { ...config.value, fields: list })
+    }
+    function removeField(idx) {
+      const list = [...fields.value]
+      list.splice(idx, 1)
+      store.commit('updateConfig', { ...config.value, fields: list })
+    }
+
     return {
       config,
       configSuccess,
+      fields,
+      addField,
+      removeField,
       saveConfig,
       resetConfig
     }
