@@ -34,7 +34,7 @@
     <!-- 源端配置 -->
     <div class="target-end-config">
       <h4>源端配置</h4>
-      <div class="form-grid">
+      <div v-if="config.sourceType === 'jdbc'" class="form-grid">
         <div class="form-group">
           <label>URL</label>
           <input v-model="config.sourceConfig.url" class="form-control" />
@@ -90,6 +90,10 @@
             <option :value="false">否</option>
             <option :value="true">是</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label>INDEX</label>
+          <input  v-model="config.targetFieldName" class="form-control" />
         </div>
       </div>
     </div>
