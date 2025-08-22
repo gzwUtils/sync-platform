@@ -36,6 +36,7 @@ export default createStore({
             destinationType: "",
             destinationConfig: {
                 clusterNodes: "",
+                bootstrapServers: "",
                 disableSslVerification: false,
                 url: '',
                 username: '',
@@ -95,6 +96,7 @@ export default createStore({
                 },
                 destinationConfig: {
                     clusterNodes: '',
+                    bootstrapServers: "",
                     disableSslVerification: false,
                     url: '',
                     username: '',

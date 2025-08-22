@@ -98,6 +98,19 @@
       </div>
     </div>
 
+    <!-- kafka -->
+    <div v-if="config.destinationType === 'kafka'" class="form-grid">
+      <div class="form-group">
+        <label>服务地址</label>
+        <input v-model="config.destinationConfig.bootstrapServers" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label>topic</label>
+        <input  v-model="config.targetFieldName" class="form-control" />
+      </div>
+    </div>
+  </div>
+
     <!-- 同步配置 -->
     <div class="config-advanced">
       <h4>同步配置</h4>
