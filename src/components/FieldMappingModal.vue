@@ -19,15 +19,15 @@
               class="field-row"
           >
             <div class="field-cell">
-              <label>javaField</label>
+              <label>java属性</label>
               <input v-model="f.javaField" />
             </div>
             <div class="field-cell">
-              <label>sourceField</label>
+              <label>源字段</label>
               <input v-model="f.sourceField" />
             </div>
             <div class="field-cell">
-              <label>sourceType</label>
+              <label>源字段类型</label>
               <select v-model="f.sourceType">
                 <option>String</option><option>Long</option><option>Integer</option>
                 <option>Double</option><option>BigDecimal</option>
@@ -35,11 +35,11 @@
               </select>
             </div>
             <div class="field-cell">
-              <label>targetField</label>
+              <label>目标字段</label>
               <input v-model="f.targetField" />
             </div>
             <div class="field-cell">
-              <label>targetType</label>
+              <label>目标字段类型</label>
               <select v-model="f.targetType">
                 <option>String</option><option>Long</option><option>Integer</option>
                 <option>Double</option><option>BigDecimal</option>
@@ -47,14 +47,14 @@
               </select>
             </div>
             <div class="field-cell">
-              <label>checkpoint</label>
+              <label>是否是校验点</label>
               <select v-model="f.checkpoint">
                 <option :value="true">是</option>
                 <option :value="false">否</option>
               </select>
             </div>
             <div class="field-cell">
-              <label>role</label>
+              <label>角色</label>
               <select v-model="f.role">
                 <option value="id">ID</option>
                 <option value="data">DATA</option>
@@ -152,6 +152,10 @@ const confirm     = () => emit('update', innerFields.value)
   padding: 20px 30px;
   overflow-y: auto;
   background: #ffffff;
+
+  height: 0;
+  min-height: 100%;
+  max-height: calc(90vh - 220px);
 }
 .field-row {
   display: grid;
