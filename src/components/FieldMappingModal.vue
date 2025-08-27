@@ -29,9 +29,13 @@
             <div class="field-cell">
               <label>源字段类型</label>
               <select v-model="f.sourceType">
-                <option>String</option><option>Long</option><option>Integer</option>
-                <option>Double</option><option>BigDecimal</option>
-                <option>LocalDate</option><option>LocalDateTime</option>
+                <option>String</option>
+                <option>Long</option>
+                <option>Integer</option>
+                <option>Double</option>
+                <option>BigDecimal</option>
+                <option>LocalDate</option>
+                <option>LocalDateTime</option>
               </select>
             </div>
             <div class="field-cell">
@@ -41,9 +45,16 @@
             <div class="field-cell">
               <label>目标字段类型</label>
               <select v-model="f.targetType">
-                <option>String</option><option>Long</option><option>Integer</option>
-                <option>Double</option><option>BigDecimal</option>
-                <option>LocalDate</option><option>LocalDateTime</option>
+                <option>String</option>
+                <option>Long</option>
+                <option>Integer</option>
+                <option>Double</option>
+                <option>BigDecimal</option>
+                <option>LocalDate</option>
+                <option>LocalDateTime</option>
+                <option>Keyword</option>
+                <option>Text</option>
+                <option>Date</option>
               </select>
             </div>
             <div class="field-cell">
