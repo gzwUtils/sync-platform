@@ -9,8 +9,8 @@
         <div class="task-details">
           <h4 class="task-title">{{ task.taskName }}</h4>
           <p>任务ID: {{ task.taskId }}</p>
-          <p>源端: {{ task.sourceType === 'jdbc' ? 'JDBC数据库' : '文件系统' }}</p>
-          <p>目标端: {{ task.destinationType === 'es' ? 'Elasticsearch' : 'JDBC数据库' }}</p>
+          <p>源端: {{ task.sourceType === 'JDBC' ? 'JDBC数据库' : '文件系统' }}</p>
+          <p>目标端: {{ task.destinationType === 'Elasticsearch' ? 'Elasticsearch' : 'JDBC数据库' }}</p>
           <div class="task-status">
             <StatusIndicator :status="taskStats.status" />
             <span>记录数: {{ taskStats.processedRecords || 0 }}</span>
