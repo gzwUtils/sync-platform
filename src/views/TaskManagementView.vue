@@ -26,12 +26,6 @@
             >
           </div>
           <div class="filter-select">
-            <select v-model="statusFilter">
-              <option value="">所有状态</option>
-              <option value="RUNNING">运行中</option>
-              <option value="STOPPED">已停止</option>
-              <option value="PENDING">等待中</option>
-            </select>
             <select v-model="typeFilter">
               <option value="">所有类型</option>
               <option value="Elasticsearch">Elasticsearch</option>
@@ -45,7 +39,7 @@
         <div class="task-grid">
           <div
               class="task-card"
-              :class="task.destinationType.toLowerCase()"
+              :class="task.destinationType"
               v-for="(task, index) in filteredTasks"
               :key="index"
           >
@@ -115,9 +109,6 @@
               <div class="task-stats">
                 共 {{ taskStats.totalRecords || 0 }} / 已处理 {{ taskStats.processedRecords || 0 }}
               </div>
-              <div class="task-status">
-                <StatusIndicator :status="taskStats.status" />
-              </div>
             </div>
           </div>
 
@@ -161,17 +152,15 @@ export default {
 
     const taskStats = computed(() => store.state.currentTaskStats || {})
     const searchQuery = ref('');
-    const statusFilter = ref('');
     const typeFilter = ref('');
 
     const filteredTasks = computed(() => {
       return tasks.value.filter(task => {
-        const matchesSearch = task.taskName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-            task.taskId.toLowerCase().includes(searchQuery.value.toLowerCase());
-        const matchesStatus = !statusFilter.value || task.status === statusFilter.value;
-        const matchesType = !typeFilter.value || task.destinationType === typeFilter.value;
+        const matchesSearch = task.taskName.includes(searchQuery.value) ||
+            task.taskId.includes(searchQuery.value);
+        const matchesType = !typeFilter.value || task.destinationType.toUpperCase()=== typeFilter.value;
 
-        return matchesSearch && matchesStatus && matchesType;
+        return matchesSearch  && matchesType;
       });
     });
     // 添加组件挂载时的数据获取
@@ -262,11 +251,10 @@ export default {
 
     const clearFilters = () => {
       searchQuery.value = '';
-      statusFilter.value = '';
       typeFilter.value = '';
     };
 
-    const targetClass = (type) => type.toLowerCase();
+    const targetClass = (type) => type;
 
     const iconClass = (type) => {
       switch (type) {
@@ -287,7 +275,6 @@ export default {
       taskStats,
       filteredTasks,
       searchQuery,
-      statusFilter,
       typeFilter,
       refreshTasks,
       selectTask,

@@ -7,6 +7,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.0.0",
     "axios": "^1.6.8",
     "vue": "^3.4.19",
     "vue-router": "^4.3.0",
