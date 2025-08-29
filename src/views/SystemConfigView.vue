@@ -223,4 +223,19 @@ function resetConfig() {
   border-left: 4px solid #0d6efd;
   padding-left: 8px;
 }
+.btn {
+  width: 150px;
+  height: 36px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
 </style>

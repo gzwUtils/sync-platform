@@ -120,13 +120,13 @@ export default {
     const logs = computed(() => store.state.logs || [])
 
     const sourceTypeText = computed(() => {
-      return currentTask.value.sourceType === 'jdbc' ? 'JDBC数据库' : '文件系统'
+      return currentTask.value.sourceType === 'JDBC' ? 'JDBC数据库' : '文件系统'
     })
 
     const targetConfig = computed(() => {
       switch(currentTask.value.destinationType) {
-        case 'jdbc': return { icon: 'fa-database', name: 'JDBC数据库', description: '目标数据库' }
-        case 'es': return { icon: 'fa-search', name: 'Elasticsearch', description: '目标存储' }
+        case 'JDBC': return { icon: 'fa-database', name: 'JDBC数据库', description: '目标数据库' }
+        case 'Elasticsearch': return { icon: 'fa-search', name: 'Elasticsearch', description: '目标存储' }
         default: return { icon: 'fa-database', name: 'JDBC数据库', description: '目标数据库' }
       }
     })
@@ -242,7 +242,9 @@ export default {
 }
 </script>
 
-<style>
+
+<style scoped>
+
 * {
   margin: 0;
   padding: 0;
@@ -463,17 +465,18 @@ header {
 }
 
 .btn {
-  padding: 12px 20px;
-  border: none;
+  width: 150px;
+  height: 36px;
   border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
 }
 
 .btn-primary {

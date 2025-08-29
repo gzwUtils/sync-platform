@@ -1,38 +1,144 @@
 <template>
-  <div class="card">
-    <div class="card-header">
-      <h2 class="card-title">任务管理</h2>
-    </div>
-
-    <div class="task-list">
-      <div class="task-item" v-for="(task, index) in tasks" :key="index">
-        <div class="task-details">
-          <h4 class="task-title">{{ task.taskName }}</h4>
-          <p>任务ID: {{ task.taskId }}</p>
-          <p>源端: {{ task.sourceType === 'JDBC' ? 'JDBC数据库' : '文件系统' }}</p>
-          <p>目标端: {{ task.destinationType === 'Elasticsearch' ? 'Elasticsearch' : 'JDBC数据库' }}</p>
-          <div class="task-status">
-            <StatusIndicator :status="taskStats.status" />
-            <span>记录数: {{ taskStats.processedRecords || 0 }}</span>
+  <div>
+    <!-- 主内容 -->
+    <main class="container">
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <i class="fas fa-tasks"></i>
+            全部任务
+            <span class="subtitle">{{ filteredTasks.length }} 个任务</span>
+          </h2>
+          <div class="header-actions">
+            <button class="btn btn-outline" @click="refreshTasks">
+              <i class="fas fa-sync-alt"></i>
+            </button>
           </div>
         </div>
-        <div class="task-controls">
-          <button class="btn btn-primary btn-small" @click="selectTask(task)">
-            <i class="fas fa-eye"></i> 查看
-          </button>
-          <button
-              class="btn btn-success btn-small"
-              @click="startLocalTask(task)">
-            <i class="fas fa-play"></i> 启动
-          </button>
-          <button
-              class="btn btn-error btn-small"
-              @click="stopLocalTask(task)">
-            <i class="fas fa-stop"></i> 停止
-          </button>
+
+        <div class="filter-search">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="搜索任务名称或ID..."
+            >
+          </div>
+          <div class="filter-select">
+            <select v-model="statusFilter">
+              <option value="">所有状态</option>
+              <option value="RUNNING">运行中</option>
+              <option value="STOPPED">已停止</option>
+              <option value="PENDING">等待中</option>
+            </select>
+            <select v-model="typeFilter">
+              <option value="">所有类型</option>
+              <option value="Elasticsearch">Elasticsearch</option>
+              <option value="JDBC">JDBC</option>
+              <option value="Kafka">Kafka</option>
+            </select>
+          </div>
         </div>
+
+        <!-- 网格布局 -->
+        <div class="task-grid">
+          <div
+              class="task-card"
+              :class="task.destinationType.toLowerCase()"
+              v-for="(task, index) in filteredTasks"
+              :key="index"
+          >
+            <div class="task-header">
+              <div class="task-icon">
+                <i :class="iconClass(task.destinationType)"></i>
+              </div>
+              <div class="task-actions">
+                <button
+                    class="btn btn-outline"
+                    @click="selectTask(task)"
+                    title="查看"
+                >
+                  <i class="fas fa-eye"></i>
+                </button>
+                <button
+                    class="btn btn-play"
+                    @click="startLocalTask(task)"
+                    :disabled="task.status === 'RUNNING'"
+                    title="启动"
+                >
+                  <i class="fas fa-play"></i>
+                </button>
+                <button
+                    class="btn btn-stop"
+                    @click="stopLocalTask(task)"
+                    :disabled="task.status === 'STOPPED'"
+                    title="停止"
+                >
+                  <i class="fas fa-stop"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="task-info">
+              <div class="task-name">
+                {{ task.taskName }}
+              </div>
+
+              <div class="task-details">
+                <div class="task-detail">
+                  <span class="detail-label">ID:</span>
+                  {{ task.taskId }}
+                </div>
+                <div class="task-detail">
+                  <span class="detail-label">源:</span>
+                  <span class="tag tag-source">{{ task.sourceType }}</span>
+                </div>
+                <div class="task-detail">
+                  <span class="detail-label">目标:</span>
+                  <span class="tag tag-dest">{{ task.destinationType }}</span>
+                </div>
+              </div>
+
+              <div class="progress-container" v-if="taskStats.totalRecords > 0">
+                <div class="progress-info">
+                  <span>处理进度</span>
+                  <span>{{ Math.round((taskStats.processedRecords / taskStats.totalRecords) * 100) }}%</span>
+                </div>
+                <div class="progress-bar">
+                  <div class="progress-fill" :style="{ width: (taskStats.processedRecords / taskStats.totalRecords) * 100 + '%' }"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="task-footer">
+              <div class="task-stats">
+                共 {{ taskStats.totalRecords || 0 }} / 已处理 {{ taskStats.processedRecords || 0 }}
+              </div>
+              <div class="task-status">
+                <StatusIndicator :status="taskStats.status" />
+              </div>
+            </div>
+          </div>
+
+          <div class="empty-state" v-if="filteredTasks.length === 0">
+            <i class="fas fa-inbox"></i>
+            <p>没有找到匹配的任务</p>
+            <button class="btn btn-outline" @click="clearFilters">
+              <i class="fas fa-times"></i> 清除筛选条件
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- loading -->
+    <transition name="fade">
+      <div class="loading-overlay" v-if="loading">
+        <div class="spinner"></div>
+        <span style="margin-left: 12px;">加载中...</span>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -54,6 +160,20 @@ export default {
     const loading = ref(false)
 
     const taskStats = computed(() => store.state.currentTaskStats || {})
+    const searchQuery = ref('');
+    const statusFilter = ref('');
+    const typeFilter = ref('');
+
+    const filteredTasks = computed(() => {
+      return tasks.value.filter(task => {
+        const matchesSearch = task.taskName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+            task.taskId.toLowerCase().includes(searchQuery.value.toLowerCase());
+        const matchesStatus = !statusFilter.value || task.status === statusFilter.value;
+        const matchesType = !typeFilter.value || task.destinationType === typeFilter.value;
+
+        return matchesSearch && matchesStatus && matchesType;
+      });
+    });
     // 添加组件挂载时的数据获取
     onMounted(async () => {
       loading.value = true
@@ -77,6 +197,20 @@ export default {
       store.commit('updateConfig', task)
       router.push('/monitoring')
     }
+
+    const refreshTasks = async () => {
+      loading.value = true;
+      try {
+        await store.dispatch('fetchTasks');
+      } catch (error) {
+        store.commit('addLog', {
+          time: new Date().toLocaleTimeString(),
+          message: `刷新任务列表失败: ${error.message}`
+        })
+      } finally {
+        loading.value = false;
+      }
+    };
 
     // 启动任务
     const startLocalTask = async (task) => {
@@ -126,270 +260,259 @@ export default {
       }
     }
 
+    const clearFilters = () => {
+      searchQuery.value = '';
+      statusFilter.value = '';
+      typeFilter.value = '';
+    };
+
+    const targetClass = (type) => type.toLowerCase();
+
+    const iconClass = (type) => {
+      switch (type) {
+        case 'Elasticsearch':
+          return 'fab fa-searchengin';
+        case 'JDBC':
+          return 'fas fa-database';
+        case 'Kafka':
+          return 'fas fa-stream';
+        default:
+          return 'fas fa-question';
+      }
+    };
+
     return {
       loading,
       tasks,
       taskStats,
+      filteredTasks,
+      searchQuery,
+      statusFilter,
+      typeFilter,
+      refreshTasks,
       selectTask,
       startLocalTask,
-      stopLocalTask
+      stopLocalTask,
+      clearFilters,
+      targetClass,
+      iconClass
     }
   }
 }
 </script>
 
+
 <style>
+:root {
+  --card-bg-1: #1e3a5f;
+  --card-bg-2: #152842;
+  --card-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --card-shadow-lg: 0 14px 30px rgba(0, 0, 0, 0.5);
+  --tag-jdbc: #ef4444;
+  --tag-source: #0ea5e9;
+  --tag-dest: #10b981;
+  --elasticsearch: #2c5aa0;
+  --jdbc: #3a6d99;
+  --kafka: #2875a0;
+  --primary: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-700: #374151;
+  --gray-900: #111827;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-}
-
-:root {
-  --primary-color: #3b82f6;
-  --secondary-color: #1e40af;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --error-color: #ef4444;
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --border-color: #475569;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #f8fafc;
   min-height: 100vh;
-  line-height: 1.6;
+  padding: 20px;
 }
 
 .container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
-}
-
-header {
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 20px 30px;
-  margin-bottom: 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.logo i {
-  font-size: 2.5rem;
-  color: var(--primary-color);
-}
-
-.logo h1 {
-  font-size: 1.8rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, var(--primary-color), #8b5cf6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.nav-links {
-  display: flex;
-  gap: 8px;
-}
-
-.nav-links a {
-  text-decoration: none;
-  color: var(--text-secondary);
-  font-weight: 500;
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.nav-links a:hover, .nav-links a.active {
-  background: var(--bg-tertiary);
-  color: var(--primary-color);
 }
 
 .card {
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 25px;
-  margin-bottom: 30px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border-color);
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .card-header {
+  padding: 24px 32px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .card-title {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.status-indicator {
+  font-size: 24px;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+}
+
+.card-title i {
+  color: #3b82f6;
+}
+
+.subtitle {
+  background: rgba(30, 58, 138, 0.5);
   padding: 6px 12px;
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 14px;
   font-weight: 500;
 }
 
-.status-running {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success-color);
+.header-actions {
+  display: flex;
+  gap: 12px;
 }
 
-.status-stopped {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--error-color);
+.filter-search {
+  display: flex;
+  gap: 16px;
+  padding: 16px 32px;
+  background: rgba(15, 23, 42, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.status-pending {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--warning-color);
+.search-box {
+  position: relative;
+  flex: 1;
 }
 
-.pulse {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin: 20px 0;
-}
-
-.metric-card {
-  background: var(--bg-tertiary);
+.search-box input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
   border-radius: 8px;
-  padding: 20px;
-  text-align: center;
-  transition: transform 0.3s ease;
+  border: none;
+  background: rgba(30, 41, 59, 0.8);
+  color: white;
+  outline: none;
 }
 
-.metric-card:hover {
-  transform: translateY(-2px);
+.search-box i {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
 }
 
-.metric-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 5px;
+.filter-select {
+  display: flex;
+  gap: 12px;
 }
 
-.metric-label {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
+.filter-select select {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(30, 41, 59, 0.8);
+  color: white;
+  outline: none;
+  cursor: pointer;
 }
 
-.metric-unit {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+  padding: 32px;
 }
 
-.progress-section {
-  margin: 25px 0;
+.task-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(135deg, var(--card-bg-1) 0%, var(--card-bg-2) 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow-sm);
+  transition: transform 0.3s, box-shadow 0.3s;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.progress-info {
+.task-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--card-shadow-lg);
+}
+
+.task-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 0.9rem;
+  align-items: flex-start;
+  padding: 20px 20px 16px;
 }
 
-.progress-bar {
-  height: 6px;
-  background: var(--bg-tertiary);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary-color), var(--success-color));
-  transition: width 0.5s ease;
-}
-
-.task-controls {
-  display: grid;
-  gap: 15px;
-  margin-top: 20px;
-}
-
-.control-group {
-  display: flex;
-  gap: 10px;
-}
-
-.btn {
-  padding: 12px 20px;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
+.task-icon {
+  flex-shrink: 0;
+  width: 50px;
+  height: 50px;
+  background-color: rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 12px;
+  font-size: 1.5rem;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.task-actions {
+  display: flex;
   gap: 8px;
 }
 
-.btn-primary {
-  background: var(--primary-color);
-  color: white;
+.btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  font-size: 0.9rem;
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
 }
 
-.btn-success {
-  background: var(--success-color);
-  color: white;
+.btn-outline {
+  background-color: var(--primary);
 }
 
-.btn-warning {
-  background: var(--warning-color);
-  color: white;
+.btn-play {
+  background-color: var(--success);
 }
 
-.btn-error {
-  background: var(--error-color);
-  color: white;
+.btn-stop {
+  background-color: var(--danger);
+}
+
+.btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
 
 .btn:disabled {
@@ -398,145 +521,150 @@ header {
   transform: none;
 }
 
-.btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+.task-info {
+  padding: 0 20px 20px;
+  flex: 1;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
+.task-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.form-group {
-  margin-bottom: 15px;
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 0.9rem;
+.status-running {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #10b981;
 }
 
-.form-control {
-  width: 100%;
-  padding: 10px 12px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.9rem;
+.status-stopped {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
 }
 
-.form-control:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.status-pending {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
 }
 
-.logs-section {
-  margin-top: 30px;
+.task-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.log-entry {
-  background: var(--bg-tertiary);
-  border-left: 3px solid var(--primary-color);
-  padding: 12px 15px;
-  margin-bottom: 8px;
-  border-radius: 0 6px 6px 0;
-  font-family: 'Courier New', monospace;
-  font-size: 0.85rem;
-}
-
-.log-time {
-  color: var(--text-secondary);
-  margin-right: 10px;
-}
-
-.log-message {
-  color: var(--text-primary);
-}
-
-.alert {
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 15px;
+.task-detail {
   display: flex;
   align-items: center;
-  gap: 10px;
+  font-size: 0.85rem;
+  color: #cbd5e1;
 }
 
-.alert-success {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--success-color);
-  border: 1px solid rgba(16, 185, 129, 0.2);
+.detail-label {
+  min-width: 50px;
+  color: #94a3b8;
 }
 
-.alert-error {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--error-color);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+.tag {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 8px;
 }
 
-.alert-warning {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--warning-color);
-  border: 1px solid rgba(245, 158, 11, 0.2);
+.tag-jdbc {
+  background-color: var(--tag-jdbc);
+  color: #fff;
 }
 
-.sync-visualization {
-  background: var(--bg-tertiary);
-  border-radius: 8px;
-  padding: 20px;
-  margin: 20px 0;
-  position: relative;
+.tag-source {
+  background-color: var(--tag-source);
+  color: #fff;
+}
+
+.tag-dest {
+  background-color: var(--tag-dest);
+  color: #fff;
+}
+
+.progress-container {
+  margin-top: 16px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.progress-bar {
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
   overflow: hidden;
 }
 
-.sync-flow {
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.task-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.task-stats {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.task-status {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  position: relative;
-  z-index: 1;
+  gap: 8px;
 }
 
-.sync-node {
-  text-align: center;
-  padding: 15px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  min-width: 120px;
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
 }
 
-.sync-node i {
-  font-size: 2rem;
-  color: var(--primary-color);
-  margin-bottom: 8px;
+.status-indicator.running {
+  background-color: var(--success);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
 }
 
-.sync-arrow {
-  flex: 1;
-  height: 2px;
-  background: linear-gradient(90deg, var(--primary-color), transparent);
-  position: relative;
-  margin: 0 20px;
+.status-indicator.stopped {
+  background-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
 }
 
-.sync-arrow::after {
-  content: '';
-  position: absolute;
-  right: -8px;
-  top: -3px;
-  width: 0;
-  height: 0;
-  border-left: 8px solid var(--primary-color);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
+.status-indicator.pending {
+  background-color: var(--warning);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
 }
 
 .loading-overlay {
@@ -545,181 +673,67 @@ header {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.8);
+  background-color: rgba(0, 0, 0, 0.7);
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
   z-index: 1000;
 }
 
 .spinner {
   width: 50px;
   height: 50px;
-  border: 3px solid var(--border-color);
-  border-top: 3px solid var(--primary-color);
+  border: 5px solid rgba(255, 255, 255, 0.1);
   border-radius: 50%;
+  border-top-color: #3b82f6;
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@media (max-width: 1024px) {
-  .form-grid {
-    grid-template-columns: 1fr;
+  to {
+    transform: rotate(360deg);
   }
-
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .container {
-    padding: 10px;
-  }
-
-  header {
-    flex-direction: column;
-    gap: 15px;
-    text-align: center;
-  }
-
-  .nav-links {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.content {
-  display: none;
-}
-
-.content.active {
-  display: block;
-}
-
-.config-advanced {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-color);
-}
-
-.target-end-config {
-  margin-top: 15px;
-}
-
-.task-item {
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.task-details {
-  flex: 1;
-}
-
-.task-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.task-status {
-  display: flex;
-  gap: 15px;
-  align-items: center;
-  margin-top: 10px;
-}
-
-.task-controls {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-small {
-  padding: 8px 15px;
-  font-size: 0.85rem;
-}
-
-.shard-progress {
-  margin-top: 15px;
-}
-
-.shard-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.shard-item {
-  background: var(--bg-tertiary);
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-size: 0.85rem;
-}
-
-.shard-success {
-  background: rgba(16, 185, 129, 0.2);
-}
-
-.shard-failed {
-  background: rgba(239, 68, 68, 0.2);
-}
-
-.shard-skipped {
-  background: rgba(156, 163, 175, 0.2);
-}
-
-.shard-processing {
-  background: rgba(59, 130, 246, 0.2);
 }
 
 .fade-enter-active, .fade-leave-active {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s;
 }
 
-.fade-enter-from, .fade-leave-to {
+.fade-enter, .fade-leave-to {
   opacity: 0;
 }
 
-.error-details {
-  margin-top: 20px;
-  background: rgba(239, 68, 68, 0.1);
-  border-radius: 8px;
-  padding: 15px;
-  max-height: 300px;
-  overflow-y: auto;
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: #94a3b8;
 }
 
-.error-item {
-  background: rgba(239, 68, 68, 0.2);
-  border-radius: 6px;
-  padding: 10px;
-  margin-bottom: 10px;
-  font-size: 0.85rem;
+.empty-state i {
+  font-size: 3rem;
+  margin-bottom: 16px;
+  opacity: 0.5;
 }
 
-.error-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
-  font-weight: 600;
+.empty-state p {
+  font-size: 1.1rem;
+  margin-bottom: 24px;
 }
 
-.error-content {
-  font-family: monospace;
-  white-space: pre-wrap;
+@media (max-width: 768px) {
+  .task-grid {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-search {
+    flex-direction: column;
+  }
 }
 </style>

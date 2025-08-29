@@ -45,16 +45,7 @@
             <div class="field-cell">
               <label>目标字段类型</label>
               <select v-model="f.targetType">
-                <option>String</option>
-                <option>Long</option>
-                <option>Integer</option>
-                <option>Double</option>
-                <option>BigDecimal</option>
-                <option>LocalDate</option>
-                <option>LocalDateTime</option>
-                <option>Keyword</option>
-                <option>Text</option>
-                <option>Date</option>
+                <option v-for="t in targetTypeOptions" :key="t" :value="t">{{ t }}</option>
               </select>
             </div>
             <div class="field-cell">
@@ -95,8 +86,8 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
-
+import {computed, ref, watch} from 'vue'
+import { useStore } from 'vuex'
 const props = defineProps({ fields: { type: Array, required: true } })
 const emit  = defineEmits(['close', 'update'])
 
@@ -106,6 +97,25 @@ watch(() => props.fields, n => (innerFields.value = JSON.parse(JSON.stringify(n)
 const addField    = () => innerFields.value.push({ javaField:'',sourceType:'String',sourceField:'',checkpoint:false,targetField:'',targetType:'String',role:'data' })
 const removeField = idx => innerFields.value.splice(idx, 1)
 const confirm     = () => emit('update', innerFields.value)
+
+
+const store = useStore()
+const destinationType = computed(() => store.state.config.destinationType)
+
+
+
+/* 2. 动态选项 */
+const targetTypeOptions = computed(() => {
+  switch (destinationType.value) {
+    case 'Elasticsearch':
+      return ['Keyword', 'Text', 'Date', 'Long', 'Integer', 'Double', 'Boolean','Byte']
+    case 'KAFKA':
+      return ['String', 'Long', 'Integer', 'Double', 'BigDecimal', 'LocalDate', 'LocalDateTime', 'Boolean']
+    case 'JDBC':
+    default:
+      return ['String', 'Long', 'Integer', 'Double', 'BigDecimal', 'LocalDate', 'LocalDateTime', 'Boolean','Byte']
+  }
+})
 </script>
 
 <style scoped>
@@ -237,14 +247,6 @@ const confirm     = () => emit('update', innerFields.value)
   gap: 12px;
   padding: 20px 30px;
   background: #ffffff;
-}
-.btn {
-  padding: 10px 24px;
-  border: none;
-  border-radius: 50px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform .2s, box-shadow .2s;
 }
 .btn.cancel { background: #e5e5e5; color: #333; }
 .btn.confirm { background: #10b981; color: #fff; }
