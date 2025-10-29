@@ -153,6 +153,7 @@ export default {
     const taskStats = computed(() => store.state.currentTaskStats || {})
     const searchQuery = ref('');
     const typeFilter = ref('');
+    const tasks = computed(() => store.state.tasks ?? []);
 
     const filteredTasks = computed(() => {
       return tasks.value.filter(task => {
@@ -178,7 +179,6 @@ export default {
       }
     })
 
-    const tasks = computed(() => store.state.tasks)
 
     // 选择任务
     const selectTask = (task) => {

@@ -11,6 +11,20 @@ const api = axios.create({
     }
 })
 
+/* 响应拦截器：统一把业务错误转成 Promise.reject */
+api.interceptors.response.use(
+  res => {
+    const { success, message } = res.data;
+    if (success !==true) {
+      return Promise.reject(new Error(message || '业务异常'));
+    }
+    return res.data;   // 只返回 data
+  },
+  err => {
+    return Promise.reject(new Error(err.message || '网络错误'));
+  }
+);
+
 // 启动任务接口
 export const startTask = (config) => {
     return api.post('/dataPush/start', config)
