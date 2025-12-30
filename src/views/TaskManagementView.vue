@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- 主内容 -->
     <main class="container">
       <section class="card">
         <div class="card-header">
@@ -10,8 +9,8 @@
             <span class="subtitle">{{ filteredTasks.length }} 个任务</span>
           </h2>
           <div class="header-actions">
-            <button class="btn btn-outline" @click="refreshTasks">
-              <i class="fas fa-sync-alt"></i>
+            <button class="btn btn-outline" @click="refreshTasks" :disabled="loading">
+              <i class="fas fa-sync-alt" :class="{ 'fa-spin': loading }"></i>
             </button>
           </div>
         </div>
@@ -23,10 +22,11 @@
                 type="text"
                 v-model="searchQuery"
                 placeholder="搜索任务名称或ID..."
+                :disabled="loading"
             >
           </div>
           <div class="filter-select">
-            <select v-model="typeFilter">
+            <select v-model="typeFilter" :disabled="loading">
               <option value="">所有类型</option>
               <option value="Elasticsearch">Elasticsearch</option>
               <option value="JDBC">JDBC</option>
@@ -39,26 +39,27 @@
         <div class="task-grid">
           <div
               class="task-card"
-              :class="task.destinationType"
-              v-for="(task, index) in filteredTasks"
-              :key="index"
+              :class="getTargetClass(task.destinationType)"
+              v-for="task in filteredTasks"
+              :key="task.taskId"
           >
             <div class="task-header">
               <div class="task-icon">
-                <i :class="iconClass(task.destinationType)"></i>
+                <i :class="getIconClass(task.destinationType)"></i>
               </div>
               <div class="task-actions">
                 <button
                     class="btn btn-outline"
                     @click="selectTask(task)"
                     title="查看"
+                    :disabled="loading"
                 >
                   <i class="fas fa-eye"></i>
                 </button>
                 <button
                     class="btn btn-play"
                     @click="startLocalTask(task)"
-                    :disabled="task.status === 'RUNNING'"
+                    :disabled="taskStats[task.taskId]?.status === 'RUNNING' || loading"
                     title="启动"
                 >
                   <i class="fas fa-play"></i>
@@ -66,7 +67,7 @@
                 <button
                     class="btn btn-stop"
                     @click="stopLocalTask(task)"
-                    :disabled="task.status === 'STOPPED'"
+                    :disabled="taskStats[task.taskId]?.status !== 'RUNNING' || loading"
                     title="停止"
                 >
                   <i class="fas fa-stop"></i>
@@ -77,6 +78,9 @@
             <div class="task-info">
               <div class="task-name">
                 {{ task.taskName }}
+                <span class="status-badge" :class="'status-' + (taskStats[task.taskId]?.status || 'STOPPED').toLowerCase()">
+                  {{ taskStats[task.taskId]?.status || 'STOPPED' }}
+                </span>
               </div>
 
               <div class="task-details">
@@ -94,25 +98,28 @@
                 </div>
               </div>
 
-              <div class="progress-container" v-if="taskStats.totalRecords > 0">
+              <div class="progress-container" v-if="taskStats[task.taskId]?.totalRecords > 0">
                 <div class="progress-info">
                   <span>处理进度</span>
-                  <span>{{ Math.round((taskStats.processedRecords / taskStats.totalRecords) * 100) }}%</span>
+                  <span>{{ calculateProgress(task.taskId) }}%</span>
                 </div>
                 <div class="progress-bar">
-                  <div class="progress-fill" :style="{ width: (taskStats.processedRecords / taskStats.totalRecords) * 100 + '%' }"></div>
+                  <div class="progress-fill" :style="{ width: calculateProgress(task.taskId) + '%' }"></div>
                 </div>
               </div>
             </div>
 
             <div class="task-footer">
               <div class="task-stats">
-                共 {{ taskStats.totalRecords || 0 }} / 已处理 {{ taskStats.processedRecords || 0 }}
+                共 {{ taskStats[task.taskId]?.totalRecords || 0 }} / 已处理 {{ taskStats[task.taskId]?.processedRecords || 0 }}
+              </div>
+              <div class="task-status">
+                <span class="status-indicator" :class="taskStats[task.taskId]?.status || 'STOPPED'"></span>
               </div>
             </div>
           </div>
 
-          <div class="empty-state" v-if="filteredTasks.length === 0">
+          <div class="empty-state" v-if="filteredTasks.length === 0 && !loading">
             <i class="fas fa-inbox"></i>
             <p>没有找到匹配的任务</p>
             <button class="btn btn-outline" @click="clearFilters">
@@ -134,92 +141,95 @@
 </template>
 
 <script>
-import { computed, onMounted } from 'vue' // 添加onMounted
+import { computed, onMounted, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { startTask, stopTask } from '../services/api.js'
-import StatusIndicator from '../components/StatusIndicator.vue'
-import { ref } from 'vue';
 
 export default {
+  name: 'TaskList',
   components: {
-    StatusIndicator
   },
   setup() {
     const store = useStore()
     const router = useRouter()
     const loading = ref(false)
+    const searchQuery = ref('')
+    const typeFilter = ref('')
 
-    const taskStats = computed(() => store.state.currentTaskStats || {})
-    const searchQuery = ref('');
-    const typeFilter = ref('');
-    const tasks = computed(() => store.state.tasks ?? []);
+    // 获取任务列表
+    const tasks = computed(() => store.state.tasks ?? [])
 
+    // 获取所有任务的统计信息
+    const taskStats = computed(() => store.state.allTasksStats || {})
+
+    // 过滤任务
     const filteredTasks = computed(() => {
       return tasks.value.filter(task => {
-        const matchesSearch = task.taskName.includes(searchQuery.value) ||
-            task.taskId.includes(searchQuery.value);
-        const matchesType = !typeFilter.value || task.destinationType.toUpperCase()=== typeFilter.value;
+        const matchesSearch = searchQuery.value === '' ||
+          task.taskName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+          task.taskId.toLowerCase().includes(searchQuery.value.toLowerCase())
 
-        return matchesSearch  && matchesType;
-      });
-    });
-    // 添加组件挂载时的数据获取
+        const matchesType = !typeFilter.value ||
+          task.destinationType === typeFilter.value
+
+        return matchesSearch && matchesType
+      })
+    })
+
+    // 计算进度百分比
+    const calculateProgress = (taskId) => {
+      const stats = taskStats.value[taskId]
+      if (!stats || !stats.totalRecords || stats.totalRecords === 0) return 0
+      return Math.round((stats.processedRecords / stats.totalRecords) * 100)
+    }
+
+    // 组件挂载时获取数据
     onMounted(async () => {
+      await loadTasks()
+    })
+
+    // 加载任务列表
+    const loadTasks = async () => {
       loading.value = true
       try {
-        await store.dispatch('fetchTasks') // 调用Vuex action
+        await store.dispatch('fetchTasks')
+
+        // 为每个任务获取统计信息
+        const tasksList = store.state.tasks
+        await Promise.all(tasksList.map(task =>
+          store.dispatch('fetchTaskStats', task.taskId)
+        ))
       } catch (error) {
-        store.commit('addLog', {
-          time: new Date().toLocaleTimeString(),
-          message: `获取任务列表失败: ${error.message}`
-        })
+        console.error('加载任务列表失败:', error)
       } finally {
         loading.value = false
       }
-    })
+    }
 
+    // 刷新任务列表
+    const refreshTasks = async () => {
+      await loadTasks()
+    }
 
-    // 选择任务
+    // 查看任务详情
     const selectTask = (task) => {
       store.commit('setCurrentTask', task)
       store.commit('updateConfig', task)
-      router.push('/monitoring')
+      router.push({
+        path: '/monitoring',
+        query: { taskId: task.taskId }
+      })
     }
-
-    const refreshTasks = async () => {
-      loading.value = true;
-      try {
-        await store.dispatch('fetchTasks');
-      } catch (error) {
-        store.commit('addLog', {
-          time: new Date().toLocaleTimeString(),
-          message: `刷新任务列表失败: ${error.message}`
-        })
-      } finally {
-        loading.value = false;
-      }
-    };
 
     // 启动任务
     const startLocalTask = async (task) => {
       loading.value = true
       try {
-        await startTask(task)
-        store.commit('addLog', {
-          time: new Date().toLocaleTimeString(),
-          message: `任务 ${task.taskName} 启动成功`
-        })
-        // 更新任务状态
-        store.commit('updateTaskStatus', { taskId: task.taskId, status: 'RUNNING' })
-
-        // 添加：启动后刷新任务列表
-        await store.dispatch('fetchTasks')
+        await store.dispatch('startTask', task)
+        // 重新获取该任务的统计信息
+        await store.dispatch('fetchTaskStats', task.taskId)
       } catch (error) {
-        store.commit('addLog', {
-          time: new Date().toLocaleTimeString(),
-          message: `任务启动失败: ${error.message}`
-        })
+        console.error('启动任务失败:', error)
       } finally {
         loading.value = false
       }
@@ -229,45 +239,45 @@ export default {
     const stopLocalTask = async (task) => {
       loading.value = true
       try {
-        await stopTask(task.taskId)
-        store.commit('addLog', {
-          time: new Date().toLocaleTimeString(),
-          message: `任务 ${task.taskId} 已停止`
-        })
-        // 更新任务状态
-        store.commit('updateTaskStatus', { taskId: task.taskId, status: 'STOPPED' })
-
-        // 添加：停止后刷新任务列表
-        await store.dispatch('fetchTasks')
+        await store.dispatch('stopTask', task.taskId)
+        // 重新获取该任务的统计信息
+        await store.dispatch('fetchTaskStats', task.taskId)
       } catch (error) {
-        store.commit('addLog', {
-          time: new Date().toLocaleTimeString(),
-          message: `任务停止失败: ${error.message}`
-        })
+        console.error('停止任务失败:', error)
       } finally {
         loading.value = false
       }
     }
 
+    // 清除筛选条件
     const clearFilters = () => {
-      searchQuery.value = '';
-      typeFilter.value = '';
-    };
+      searchQuery.value = ''
+      typeFilter.value = ''
+    }
 
-    const targetClass = (type) => type;
+    // 获取目标类型对应的CSS类
+    const getTargetClass = (type) => {
+      switch (type) {
+        case 'Elasticsearch': return 'elasticsearch'
+        case 'JDBC': return 'jdbc'
+        case 'Kafka': return 'kafka'
+        default: return 'default'
+      }
+    }
 
-    const iconClass = (type) => {
+    // 获取图标类
+    const getIconClass = (type) => {
       switch (type) {
         case 'Elasticsearch':
-          return 'fab fa-searchengin';
+          return 'fab fa-searchengin'
         case 'JDBC':
-          return 'fas fa-database';
+          return 'fas fa-database'
         case 'Kafka':
-          return 'fas fa-stream';
+          return 'fas fa-stream'
         default:
-          return 'fas fa-question';
+          return 'fas fa-question'
       }
-    };
+    }
 
     return {
       loading,
@@ -276,46 +286,41 @@ export default {
       filteredTasks,
       searchQuery,
       typeFilter,
+      calculateProgress,
       refreshTasks,
       selectTask,
       startLocalTask,
       stopLocalTask,
       clearFilters,
-      targetClass,
-      iconClass
+      getTargetClass,
+      getIconClass
     }
   }
 }
 </script>
 
-
-<style>
+<style scoped>
 :root {
   --card-bg-1: #1e3a5f;
   --card-bg-2: #152842;
   --card-shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
   --card-shadow-lg: 0 14px 30px rgba(0, 0, 0, 0.5);
-  --tag-jdbc: #ef4444;
   --tag-source: #0ea5e9;
   --tag-dest: #10b981;
   --elasticsearch: #2c5aa0;
   --jdbc: #3a6d99;
   --kafka: #2875a0;
+  --default: #374151;
   --primary: #3b82f6;
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-700: #374151;
-  --gray-900: #111827;
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
@@ -355,6 +360,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  color: #f8fafc;
 }
 
 .card-title i {
@@ -367,6 +373,7 @@ body {
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
+  color: #cbd5e1;
 }
 
 .header-actions {
@@ -391,10 +398,15 @@ body {
   width: 100%;
   padding: 10px 16px 10px 40px;
   border-radius: 8px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(30, 41, 59, 0.8);
   color: white;
   outline: none;
+  transition: border-color 0.3s;
+}
+
+.search-box input:focus {
+  border-color: #3b82f6;
 }
 
 .search-box i {
@@ -405,19 +417,19 @@ body {
   color: #94a3b8;
 }
 
-.filter-select {
-  display: flex;
-  gap: 12px;
-}
-
 .filter-select select {
   padding: 10px 16px;
   border-radius: 8px;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(30, 41, 59, 0.8);
   color: white;
   outline: none;
   cursor: pointer;
+  min-width: 120px;
+}
+
+.filter-select select:focus {
+  border-color: #3b82f6;
 }
 
 .task-grid {
@@ -437,11 +449,24 @@ body {
   box-shadow: var(--card-shadow-sm);
   transition: transform 0.3s, box-shadow 0.3s;
   border: 1px solid rgba(255, 255, 255, 0.05);
+  min-height: 280px;
 }
 
 .task-card:hover {
   transform: translateY(-5px);
   box-shadow: var(--card-shadow-lg);
+}
+
+.task-card.elasticsearch {
+  border-left: 4px solid var(--elasticsearch);
+}
+
+.task-card.jdbc {
+  border-left: 4px solid var(--jdbc);
+}
+
+.task-card.kafka {
+  border-left: 4px solid var(--kafka);
 }
 
 .task-header {
@@ -497,7 +522,7 @@ body {
   background-color: var(--danger);
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   transform: scale(1.1);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
 }
@@ -549,6 +574,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 16px;
 }
 
 .task-detail {
@@ -570,11 +596,6 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   margin-left: 8px;
-}
-
-.tag-jdbc {
-  background-color: var(--tag-jdbc);
-  color: #fff;
 }
 
 .tag-source {
@@ -639,17 +660,17 @@ body {
   border-radius: 50%;
 }
 
-.status-indicator.running {
+.status-indicator.RUNNING {
   background-color: var(--success);
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
 }
 
-.status-indicator.stopped {
+.status-indicator.STOPPED {
   background-color: var(--danger);
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
 }
 
-.status-indicator.pending {
+.status-indicator.PENDING {
   background-color: var(--warning);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3);
 }
@@ -665,6 +686,7 @@ body {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(5px);
 }
 
 .spinner {
@@ -695,6 +717,9 @@ body {
   text-align: center;
   padding: 60px 20px;
   color: #94a3b8;
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 12px;
+  border: 2px dashed rgba(148, 163, 184, 0.3);
 }
 
 .empty-state i {
@@ -706,6 +731,15 @@ body {
 .empty-state p {
   font-size: 1.1rem;
   margin-bottom: 24px;
+}
+
+.fa-spin {
+  animation: fa-spin 2s linear infinite;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {
