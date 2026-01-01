@@ -1,0 +1,24 @@
+{
+  "name": "data-sync-platform",
+  "version": "1.0.0",
+  "description": "数据同步平台前端应用",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.0.0",
+    "axios": "^1.6.8",
+    "vue": "^3.4.19",
+    "vue-router": "^4.3.0",
+    "vuex": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "vite": "^5.1.4"
+  },
+  "author": "",
+  "license": "ISC"
+}
