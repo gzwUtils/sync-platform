@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // 设置基础URL，根据实际环境配置
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:20001/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://101.42.236.45:20001/api'
 
 const api = axios.create({
     baseURL: BASE_URL,
